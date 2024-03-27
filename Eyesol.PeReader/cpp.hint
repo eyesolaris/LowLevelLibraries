@@ -1,0 +1,2 @@
+#define EYESOLPEREADER_API __declspec(dllexport)
+#define EYESOLPEREADER_API __declspec(dllimport)
