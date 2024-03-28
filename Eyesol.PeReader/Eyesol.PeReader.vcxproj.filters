@@ -27,15 +27,30 @@
     <ClCompile Include="src\start.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="src\MemoryMappedIO.Windows.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\Eyesol.PeReader.h">
+    <ClInclude Include="include\Eyesol.PeReader.hpp">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="include\framework.h">
+    <ClInclude Include="include\framework.hpp">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="include\win32.h">
+    <ClInclude Include="include\win32.hpp">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="include\PeHeaders.hpp">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Memory.hpp">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="include\CompilerInfo.hpp">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="include\MemoryMappedIO.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,5 +1,5 @@
-#include <Eyesol.PeReader.h>
-#include <framework.h>
+#include <Eyesol.PeReader.hpp>
+#include <framework.hpp>
 
 int Eyesol::start()
 {

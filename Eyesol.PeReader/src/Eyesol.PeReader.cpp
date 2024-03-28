@@ -1,8 +1,8 @@
 ﻿// Eyesol.PeReader.cpp : Определяет экспортируемые функции для DLL.
 //
 
-#include "framework.h"
-#include "Eyesol.PeReader.h"
+#include <framework.hpp>
+#include <Eyesol.PeReader.hpp>
 
 
 // Пример экспортированной переменной

@@ -1,4 +1,6 @@
-﻿#include "framework.h"
+﻿#if !defined _EYESOL_PEREADER_H_
+#	define _EYESOL_PEREADER_H_
+#	include <framework.hpp>
 
 namespace Eyesol
 {
@@ -15,3 +17,4 @@ namespace Eyesol
 
 	EYESOLPEREADER_API int start();
 }
+#endif

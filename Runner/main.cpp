@@ -1,5 +1,5 @@
-#include <framework.h>
-#include <Eyesol.PeReader.h>
+#include <framework.hpp>
+#include <Eyesol.PeReader.hpp>
 
 int main()
 {
