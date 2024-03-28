@@ -1,125 +1,21 @@
 #if defined _WIN32
-#	include "MemoryMappedIO.h"
-#	include "win32.hpp"
+#	include "MemoryMappedIO.hpp"
+#	include "Runtime.hpp"
+#	include "Eyesol.Windows.hpp"
+
+using namespace Eyesol::Windows;
+
 namespace Eyesol::MemoryMappedIO
 {
 	namespace
 	{
-		std::wstring string_to_wstring(std::string str)
-		{
-			// first, find out a necessary buffer size
-			int newStringCharsCount =
-				::MultiByteToWideChar(
-					CP_UTF8, // A defult encoding (May be CP_ACP?)
-					0, // flags
-					str.c_str(), // byte string
-					-1, // byte string length (in case of -1, string must be null-terminated)
-					nullptr, // a pointer to an output buffer. Ignored when the next param is 0
-					0 // size of an output buffer. Zero makes a function to return a required buffer size
-				);
-			if (newStringCharsCount == 0)
-			{
-				throw std::runtime_error{ std::string("Some error while encoding a string to wstring occured. Error code: "
-					+ std::to_string(::GetLastError())) };
-			}
-			if (newStringCharsCount < 0)
-			{
-				throw std::runtime_error{ "New string buffer size is less then zero" };
-			}
-			std::wstring newString(static_cast<std::size_t>(static_cast<unsigned int>(newStringCharsCount)), '\0');
-			int charsWritten =
-				::MultiByteToWideChar(
-					CP_UTF8,
-					0,
-					str.c_str(),
-					-1,
-					newString.data(),
-					static_cast<unsigned int>(newString.length())
-				);
-			if (charsWritten != newStringCharsCount)
-			{
-				throw std::runtime_error(std::string("Some error while encoding a string to wstring occured. Error code: ")
-					+ std::to_string(::GetLastError()));
-			}
-			return std::move(newString);
-		}
-
-		std::wstring u16string_to_wstring(std::u16string str)
-		{
-			// In Windows, wchar_t is equivalent to UTF16
-			std::wstring convertedStr(str.length(), L'\0');
-			for (std::size_t i = 0; i < str.length(); i++)
-			{
-				convertedStr[i] = static_cast<wchar_t>(str[i]);
-			}
-			return std::move(convertedStr);
-		}
-
-		class WindowsHandle
-		{
-			HANDLE _handle;
-
-		public:
-			WindowsHandle()
-				: _handle{ INVALID_HANDLE_VALUE }
-			{
-			}
-
-			WindowsHandle(HANDLE handle)
-				: _handle{ handle }
-			{
-			}
-
-			WindowsHandle(const WindowsHandle&) = delete;
-			WindowsHandle& operator=(const WindowsHandle&) = delete;
-
-			WindowsHandle(WindowsHandle&& other)
-				: _handle{ other._handle }
-			{
-				other._handle = INVALID_HANDLE_VALUE;
-			}
-
-			WindowsHandle& operator=(WindowsHandle&& other)
-			{
-				_handle = other._handle;
-				other._handle = INVALID_HANDLE_VALUE;
-			}
-
-			~WindowsHandle()
-			{
-				closeHandle();
-			}
-
-			HANDLE getHandle() const { return _handle; }
-
-			// closes an old handle and places a new one
-			void put(HANDLE handle)
-			{
-				closeHandle();
-				_handle = handle;
-			}
-
-			// returns a handle preventing it's releasing
-			HANDLE release()
-			{
-				HANDLE handle = _handle;
-				_handle = INVALID_HANDLE_VALUE;
-				return handle;
-			}
-
-		private:
-			void closeHandle()
-			{
-				if (_handle != INVALID_HANDLE_VALUE)
-				{
-					::CloseHandle(_handle);
-					_handle = INVALID_HANDLE_VALUE;
-				}
-			}
-		};
-
 		void* createMapViewOfFile(HANDLE fileMapping, std::uint64_t offset, std::size_t length, std::uint64_t totalFileLength)
 		{
+			auto allocGranularity = Eyesol::Runtime::AllocationGranularity();
+			if (offset % allocGranularity != 0)
+			{
+				throw std::out_of_range{ "Invalid offset granularity. " + std::to_string(allocGranularity) + " is required" };
+			}
 			// Maximum offset is totalFileLength - 1,
 			// which produces maximum a one byte region
 			if (offset >= totalFileLength)
@@ -148,8 +44,7 @@ namespace Eyesol::MemoryMappedIO
 				);
 			if (baseAddress == nullptr)
 			{
-				throw std::runtime_error{ std::string("Some error occured while creating a file map view. Error code: ")
-					+ std::to_string(::GetLastError()) };
+				throw std::runtime_error{ FormatWindowsErrorMessage(::GetLastError(), "creating a file map view") };
 			}
 			return baseAddress;
 		}
@@ -169,7 +64,7 @@ namespace Eyesol::MemoryMappedIO
 
 	public:
 		MemoryMappedFileImpl(std::string path)
-			: MemoryMappedFileImpl{ string_to_wstring(path) }
+			: MemoryMappedFileImpl{ utf8string_to_wstring(path) }
 		{
 		}
 
@@ -184,7 +79,7 @@ namespace Eyesol::MemoryMappedIO
 				constexpr wchar_t LONG_FILE_HEADER[]{ L'\\', L'\\', L'?', L'\\' };
 				std::wstring correctedPath(path.length() + sizeof(LONG_FILE_HEADER), '\0');
 				std::copy(std::begin(LONG_FILE_HEADER), std::end(LONG_FILE_HEADER), correctedPath.begin());
-				path.copy(correctedPath.data() + sizeof(LONG_FILE_HEADER), path.length());
+				path.copy(correctedPath.data() + sizeof(LONG_FILE_HEADER) / sizeof(wchar_t), path.length());
 				path = std::move(correctedPath);
 			}
 			WindowsHandle openedFile;
@@ -201,9 +96,7 @@ namespace Eyesol::MemoryMappedIO
 				);
 				if (openedFileHandle == INVALID_HANDLE_VALUE)
 				{
-					throw new std::runtime_error{
-						std::string("Some error happend while opening a file. Error code: ")
-						+ std::to_string(::GetLastError()) };
+					throw std::runtime_error{ FormatWindowsErrorMessage(::GetLastError(), "opening a file") };
 				}
 				openedFile = openedFileHandle;
 			}
@@ -213,8 +106,7 @@ namespace Eyesol::MemoryMappedIO
 				LARGE_INTEGER largeInt;
 				if (!::GetFileSizeEx(openedFile.getHandle(), &largeInt))
 				{
-					throw new std::runtime_error{ std::string("Some error happened while determining a file size. Error code: ")
-						+ std::to_string(::GetLastError()) };
+					throw std::runtime_error{ FormatWindowsErrorMessage(::GetLastError(), "determining a file size") };
 				}
 				fileSize = static_cast<ULONGLONG>(largeInt.QuadPart);
 			}
@@ -231,8 +123,7 @@ namespace Eyesol::MemoryMappedIO
 				);
 				if (fileMappingObjectHandle == INVALID_HANDLE_VALUE)
 				{
-					throw std::runtime_error{ std::string("Can't create file mapping. Error code: ")
-						+ std::to_string(::GetLastError()) };
+					throw std::runtime_error{ FormatWindowsErrorMessage(::GetLastError(), "creating a file mapping") };
 				}
 				fileMappingObject = fileMappingObjectHandle;
 			}
@@ -248,17 +139,14 @@ namespace Eyesol::MemoryMappedIO
 
 		std::uint64_t fileSize() const { return _fileSize; }
 
-		MemoryMappedFileRegion mapRegion(std::uint64_t offset, std::size_t length)
-		{
-			return MemoryMappedFileRegion(*this, offset, length);
-		}
-
 		// TODO: create a custom iterator
 
 		~MemoryMappedFileImpl()
 		{
-			CloseHandle(_fileMappingObjectHandle);
-			CloseHandle(_fileHandle);
+			BOOL ok = ::CloseHandle(_fileMappingObjectHandle);
+			ok = ::CloseHandle(_fileHandle);
+			_fileMappingObjectHandle = INVALID_HANDLE_VALUE;
+			_fileHandle = INVALID_HANDLE_VALUE;
 		}
 
 	private:
@@ -271,13 +159,13 @@ namespace Eyesol::MemoryMappedIO
 		std::shared_ptr<MemoryMappedFile::MemoryMappedFileImpl> _impl;
 		unsigned char* _mapViewBaseAddress;
 		// An offset of the view in the file
-		std::int64_t _offset;
+		std::uint64_t _offset;
 		// A length of the view
 		std::uint64_t _length;
 
 	public:
-		MemoryMappedFileRegionImpl(const MemoryMappedFile& file, std::uint64_t offset, std::uint64_t length)
-			: _impl{ file._impl },
+		MemoryMappedFileRegionImpl(const std::shared_ptr<MemoryMappedFile::MemoryMappedFileImpl>& file, std::uint64_t offset, std::uint64_t length)
+			: _impl{ file },
 			_mapViewBaseAddress{ reinterpret_cast<unsigned char*>(createMapViewOfFile(
 				_impl->_fileMappingObjectHandle,
 				offset,
@@ -301,6 +189,12 @@ namespace Eyesol::MemoryMappedIO
 	private:
 		friend class MemoryMappedFile;
 	};
+
+	MemoryMappedFile::MemoryMappedFile() noexcept
+		: _impl{},
+		_length{ 0 }
+	{
+	}
 
 	MemoryMappedFile::MemoryMappedFile(std::string path)
 		: _impl{ std::move(std::make_shared<MemoryMappedFileImpl>(path)) },
@@ -327,16 +221,36 @@ namespace Eyesol::MemoryMappedIO
 	{
 	}
 
+	MemoryMappedFile::MemoryMappedFile(MemoryMappedFile&& other) noexcept
+		: _impl{ std::move(other._impl) },
+		_length{ other._length }
+	{
+		other._length = 0;
+	}
+
+
 	MemoryMappedFile::~MemoryMappedFile()
 	{
 	}
 
-	MemoryMappedFileRegion MemoryMappedFile::mapRegion(std::uint64_t offset, std::size_t length)
+	MemoryMappedFile& MemoryMappedFile::operator=(MemoryMappedFile&& other) noexcept
 	{
-		return _impl->mapRegion(offset, length);
+		_impl = std::move(other._impl);
+		_length = other._length;
+		other._length = 0;
+		return *this;
 	}
 
-	MemoryMappedFileRegion::MemoryMappedFileRegion(const MemoryMappedFile::MemoryMappedFileImpl& file, std::uint64_t offset, std::size_t length)
+	MemoryMappedFileRegion MemoryMappedFile::mapRegion(std::uint64_t offset, std::size_t length) const
+	{
+		if (empty())
+		{
+			throw std::runtime_error{ "object is empty" };
+		}
+		return MemoryMappedFileRegion(_impl, offset, length);
+	}
+
+	MemoryMappedFileRegion::MemoryMappedFileRegion(const std::shared_ptr<MemoryMappedFile::MemoryMappedFileImpl>& file, std::uint64_t offset, std::size_t length)
 		: _impl{ std::make_shared<MemoryMappedFileRegionImpl>(file, offset, length) },
 		_offset{ _impl->offset() },
 		_length{ _impl->length() }

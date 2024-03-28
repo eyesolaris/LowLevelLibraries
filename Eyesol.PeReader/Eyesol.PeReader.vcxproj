@@ -72,19 +72,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>EyesolPeReader</TargetName>
-    <IncludePath>C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include_internal;C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>EyesolPeReader</TargetName>
-    <IncludePath>C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include_internal;C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetName>EyesolPeReader</TargetName>
-    <IncludePath>C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include_internal;C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>EyesolPeReader</TargetName>
-    <IncludePath>C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include_internal;C:\Users\Eyesolaris\source\personal\LowLevelLibraries\Eyesol.PeReader\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -156,17 +156,25 @@
   <ItemGroup>
     <ClCompile Include="src\dllmain.cpp" />
     <ClCompile Include="src\Eyesol.PeReader.cpp" />
+    <ClCompile Include="src\Eyesol.Windows.cpp" />
     <ClCompile Include="src\MemoryMappedIO.Windows.cpp" />
+    <ClCompile Include="src\Runtime.Windows.cpp" />
     <ClCompile Include="src\start.cpp" />
+    <ClCompile Include="src\Strings.Windows.cpp" />
+    <ClCompile Include="src\WindowsConsoleOutputFix.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\CompilerInfo.hpp" />
     <ClInclude Include="include\Eyesol.PeReader.hpp" />
     <ClInclude Include="include\framework.hpp" />
     <ClInclude Include="include\Memory.hpp" />
-    <ClInclude Include="include\MemoryMappedIO.h" />
+    <ClInclude Include="include\MemoryMappedIO.hpp" />
     <ClInclude Include="include\PeHeaders.hpp" />
+    <ClInclude Include="include\Runtime.hpp" />
+    <ClInclude Include="include\Strings.hpp" />
     <ClInclude Include="include\win32.hpp" />
+    <ClInclude Include="include\WindowsConsoleOutputFix.hpp" />
+    <ClInclude Include="include_internal\Eyesol.Windows.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

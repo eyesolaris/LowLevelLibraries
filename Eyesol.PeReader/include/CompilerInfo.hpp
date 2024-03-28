@@ -1,9 +1,6 @@
 #if !defined _CPU_H_
 #	define _CPU_H_
 
-#	define _COMPILER_TYPE_IMPL_ Unknown
-#	define _OS_TYPE_IMPL_ Unknown
-
 #	define _X86_VERSION_IMPL_ None
 #	define _ARM_VERSION_IMPL_ None
 #	define _IA64_VERSION_IMPL_ None
@@ -18,6 +15,8 @@
 #		define _COMPILER_TYPE_IMPL_ Emscripten
 #	elif defined __MINGW32__
 #		define _COMPILER_TYPE_IMPL_ MinGW32
+#	elif
+		define _COMPILER_TYPE_IMPL_ Unknown
 #	endif
 
 #	if defined _WIN32
@@ -30,6 +29,8 @@
 #		define _OS_TYPE_IMPL_ Darwin
 #	elif defined __asmjs__
 #		define _OS_TYPE_IMPL_ AsmJS
+#	elif
+#		define _OS_TYPE_IMPL_ Unknown
 #	endif
 
 
@@ -195,7 +196,6 @@ namespace Eyesol
 			Android,
 			// macOS & iOS
 			Darwin,
-			Linux,
 			AsmJS
 		};
 
