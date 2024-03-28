@@ -3,8 +3,49 @@
 #	include <framework.hpp>
 namespace Eyesol::MemoryMappedIO
 {
-	class MemoryMappedFileRegion;
+	class MemoryMappedFile;
+	class MemoryMappedFileImpl;
 	class MemoryMappedFileIterator;
+
+	class EYESOLPEREADER_API MemoryMappedFileRegion
+	{
+		class MemoryMappedFileRegionImpl;
+
+	public:
+		MemoryMappedFileRegion(const MemoryMappedFileRegion&) noexcept = default;
+		MemoryMappedFileRegion(MemoryMappedFileRegion&&) noexcept = default;
+
+		MemoryMappedFileRegion& operator=(const MemoryMappedFileRegion& other) = default;
+		MemoryMappedFileRegion& operator=(MemoryMappedFileRegion&& other) noexcept = default;
+
+		unsigned char operator[](std::uint64_t offsetInRegion) const;
+		unsigned char at(std::uint64_t offsetInRegion) const;
+
+		const unsigned char* begin() const;
+		const unsigned char* end() const;
+		// Total region length
+		std::size_t length() const { return _length; }
+		// Offset in the file
+		std::uint64_t offset() const { return _offset; }
+		bool withinRange(std::uint64_t absoluteOffset) const noexcept;
+
+	private:
+		MemoryMappedFileRegion()
+			: _offset{},
+			_length{}
+		{
+		}
+
+		friend class MemoryMappedFile;
+		friend class MemoryMappedFileImpl;
+		friend class MemoryMappedFileIterator;
+
+		std::shared_ptr<MemoryMappedFileRegionImpl> _impl;
+		std::uint64_t _offset;
+		std::size_t _length;
+
+		MemoryMappedFileRegion(const std::shared_ptr<MemoryMappedFileImpl>& file, std::uint64_t offset, std::size_t length);
+	};
 
 	class EYESOLPEREADER_API MemoryMappedFile
 	{
@@ -17,24 +58,34 @@ namespace Eyesol::MemoryMappedIO
 
 		MemoryMappedFile& operator=(MemoryMappedFile&&) noexcept;
 
+		bool operator==(const MemoryMappedFile&) const noexcept = default;
+
 		~MemoryMappedFile();
 
-		std::uint64_t length() const { return _length; }
+		std::uint64_t length() const
+		{
+			return _length;
+		}
+
 		bool empty() const { return _length == 0; }
 
-		unsigned char operator[](std::uint64_t offset) const;
+		MemoryMappedFileIterator begin() const;
+		MemoryMappedFileIterator end() const;
+
+		unsigned char operator[](std::uint64_t absoluteOffset) const;
 
 		MemoryMappedFileRegion mapRegion(std::uint64_t offset, std::size_t length) const;
 
 	private:
-		class EYESOLPEREADER_API MemoryMappedFileImpl;
-
 		MemoryMappedFile(const MemoryMappedFileRegion&);
+		MemoryMappedFile(const std::shared_ptr<MemoryMappedFileImpl>& impl);
 
 		// An order of fields is important, as it is expected
 		// that _impl initializes first, and then - _size
 		std::shared_ptr<MemoryMappedFileImpl> _impl;
 		std::uint64_t _length;
+
+		mutable MemoryMappedFileRegion _regionCache;
 
 		friend class MemoryMappedFileRegion;
 		friend class MemoryMappedFileIterator;
@@ -51,40 +102,20 @@ namespace Eyesol::MemoryMappedIO
 		unsigned char operator*() const;
 		// preincrement
 		MemoryMappedFileIterator& operator++();
-		// postincrement
-		MemoryMappedFileIterator operator++(int);
 
-		bool operator==(const MemoryMappedFileIterator& other) noexcept;
-		int operator<=>(const MemoryMappedFileIterator& other) noexcept;
+		std::partial_ordering operator<=>(const MemoryMappedFileIterator& other) const;
+		bool operator==(const MemoryMappedFileIterator& other) const noexcept;
+
+		MemoryMappedFileIterator()
+		{
+		}
+
+		MemoryMappedFileIterator(const MemoryMappedFile& file, std::uint64_t offset);
 
 	private:
-		MemoryMappedFileIterator() { }
-
 		std::shared_ptr<MemoryMappedFileIteratorImpl> _iteratorImpl;
 
 		friend class MemoryMappedFile;
-	};
-
-	class EYESOLPEREADER_API MemoryMappedFileRegion
-	{
-		class MemoryMappedFileRegionImpl;
-
-	public:
-		const unsigned char* begin() const;
-		const unsigned char* end() const;
-		// Total region length
-		std::size_t length() const { return _length; }
-		// Offset in the file
-		std::uint64_t offset() const { return _offset; }
-
-	private:
-		friend class MemoryMappedFile;
-
-		std::shared_ptr<MemoryMappedFileRegionImpl> _impl;
-		std::uint64_t _offset;
-		std::size_t _length;
-
-		MemoryMappedFileRegion(const std::shared_ptr<MemoryMappedFile::MemoryMappedFileImpl>& file, std::uint64_t offset, std::size_t length);
 	};
 }
 #endif
