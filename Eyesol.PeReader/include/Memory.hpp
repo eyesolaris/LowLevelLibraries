@@ -1,6 +1,7 @@
 #if !defined _MEMORY_H_
 #	define _MEMORY_H_
 #	include <framework.hpp>
+
 namespace Eyesol::Memory
 {
 	template <typename T>

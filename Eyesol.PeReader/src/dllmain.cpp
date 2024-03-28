@@ -1,7 +1,7 @@
 ﻿// dllmain.cpp : Определяет точку входа для приложения DLL.
 #if defined _WIN32
 #include "framework.hpp"
-#include "win32.hpp"
+#include "win32_include.hpp"
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,

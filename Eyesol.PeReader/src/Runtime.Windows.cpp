@@ -1,6 +1,6 @@
 #if defined _WIN32
 #include "Runtime.hpp"
-#include <win32.hpp>
+#include "win32_include.hpp"
 
 namespace
 {

@@ -1,7 +1,7 @@
 #if defined _WIN32
 #	include "MemoryMappedIO.hpp"
 #	include "Runtime.hpp"
-#	include "Eyesol.Windows.hpp"
+#	include "Windows.hpp"
 
 using namespace Eyesol::Windows;
 

@@ -1,8 +1,9 @@
 #if defined _WIN32
 #	pragma once
 #	include "framework.hpp"
-#	include "win32.hpp"
+#	include "win32_include.hpp"
 #	include "Strings.hpp"
+
 namespace Eyesol::Windows
 {
 	struct WideStringTagType

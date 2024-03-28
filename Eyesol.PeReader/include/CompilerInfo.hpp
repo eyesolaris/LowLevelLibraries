@@ -95,6 +95,7 @@
 #			define _X86_VERSION_IMPL_ _8086
 #		endif
 #	endif
+
 /*******************************************************
  * TODO : Implement more compiler versions detection,  *
  * add an ARM and IA64 version detection               *

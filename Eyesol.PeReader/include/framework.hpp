@@ -26,6 +26,4 @@
 #	else
 #		define EYESOLPEREADER_API __declspec(dllimport)
 #	endif
-
-using ResourceHandle = void*;
 #endif

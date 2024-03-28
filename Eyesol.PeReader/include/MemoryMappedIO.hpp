@@ -1,6 +1,7 @@
 #if !defined _MEMORYMAPPEDIO_H_
 #	define _MEMORYMAPPEDIO_H_
 #	include <framework.hpp>
+
 namespace Eyesol::MemoryMappedIO
 {
 	class MemoryMappedFile;

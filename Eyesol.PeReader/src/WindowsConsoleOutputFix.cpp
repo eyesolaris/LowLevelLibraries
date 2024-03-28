@@ -1,7 +1,8 @@
+#if defined _WIN32
 #include <iostream>
 #include "Strings.hpp"
 #include "WindowsConsoleOutputFix.hpp"
-#include "win32.hpp"
+#include "win32_include.hpp"
 
 namespace
 {
@@ -127,3 +128,4 @@ void Eyesol::Windows::FixStdStreams()
 	FixStdStream(STD_OUTPUT_HANDLE, std::cout);
 	FixStdStream(STD_ERROR_HANDLE, std::cerr);
 }
+#endif

@@ -39,7 +39,7 @@
     <ClCompile Include="src\Strings.Windows.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="src\Eyesol.Windows.cpp">
+    <ClCompile Include="src\Windows.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="src\Runtime.Windows.cpp">
@@ -53,7 +53,7 @@
     <ClInclude Include="include\framework.hpp">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="include\win32.hpp">
+    <ClInclude Include="include\win32_include.hpp">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="include\PeHeaders.hpp">
@@ -74,10 +74,10 @@
     <ClInclude Include="include\Strings.hpp">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="include_internal\Eyesol.Windows.hpp">
-      <Filter>Внутренние файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="include\Runtime.hpp">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Windows.hpp">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

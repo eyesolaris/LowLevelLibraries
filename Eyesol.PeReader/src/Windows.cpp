@@ -1,5 +1,6 @@
 #if defined _WIN32
-#	include "Eyesol.Windows.hpp"
+#	include "Windows.hpp"
+
 namespace Eyesol::Windows
 {
 	//Returns the last Win32 error, in string format. Returns an empty string if there is no error.

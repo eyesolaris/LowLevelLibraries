@@ -1,6 +1,6 @@
 #include "Strings.hpp"
-#include "win32.hpp"
-#include "Eyesol.Windows.hpp"
+#include "Windows.hpp"
+
 namespace Eyesol
 {
 	std::wstring utf8string_to_wstring(std::string str)
