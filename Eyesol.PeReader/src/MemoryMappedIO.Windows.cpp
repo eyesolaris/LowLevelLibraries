@@ -326,22 +326,19 @@ namespace Eyesol::MemoryMappedIO
 		{
 			bytesToRead = { static_cast<std::size_t>(remainingFileLength) };
 		}
-		// Allocate first region
-		unsigned char* currentBufPtr = buf;
-		std::uint64_t currentAbsoluteOffset = fileOffset;
+		// Reading data region by region
 		std::size_t bytesRead = 0;
 		do
 		{
 			std::uint64_t baseOffset;
 			std::size_t regionLength;
 			std::size_t offsetInRegion;
-			calculateMapRegionParameters(currentAbsoluteOffset, _length, &baseOffset, &regionLength, &offsetInRegion);
+			calculateMapRegionParameters(fileOffset + bytesRead, _length, &baseOffset, &regionLength, &offsetInRegion);
 			std::size_t currentRegionBytesToRead = std::min(regionLength - offsetInRegion, bytesToRead - bytesRead);
 			MemoryMappedFileRegion currentRegion = mapRegion(baseOffset, regionLength);
-			std::memcpy(currentBufPtr, currentRegion.data() + offsetInRegion, currentRegionBytesToRead);
-			currentBufPtr += currentRegionBytesToRead;
+			// Buffers must not overlap
+			std::memcpy(buf + bytesRead, currentRegion.data() + offsetInRegion, currentRegionBytesToRead);
 			bytesRead += currentRegionBytesToRead;
-			currentAbsoluteOffset += currentRegionBytesToRead;
 		} while (bytesRead != bytesToRead);
 		return bytesRead;
 	}

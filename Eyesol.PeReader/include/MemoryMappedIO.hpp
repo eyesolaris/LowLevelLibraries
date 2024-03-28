@@ -75,6 +75,7 @@ namespace Eyesol::MemoryMappedIO
 		MemoryMappedFileIterator begin() const;
 		MemoryMappedFileIterator end() const;
 
+		// buffers must not overlap
 		std::size_t read(unsigned char* buf, std::size_t bufLength, std::uint64_t fileOffset, std::size_t bufOffset, std::size_t readLength) const;
 
 		unsigned char operator[](std::uint64_t absoluteOffset) const;
