@@ -2,6 +2,7 @@
 #include <WindowsConsoleOutputFix.hpp>
 #include <Eyesol.PeReader.hpp>
 #include <vector>
+#include <array>
 
 int main()
 {
@@ -9,7 +10,9 @@ int main()
 	try
 	{
 		//Eyesol::MemoryMappedIO::MemoryMappedFile file("D:\\utf8.txt");
-		Eyesol::MemoryMappedIO::MemoryMappedFile file("D:\\utf8.txt");
+		Eyesol::MemoryMappedIO::MemoryMappedFile file("C:\\Windows\\explorer.exe");
+		std::array<unsigned char, 65536 * 2> arr{};
+		file.read(arr.data(), arr.size(), 1, 0, arr.size());
 		auto fileLength = file.length();
 		std::cout << "File length: " << fileLength << std::endl;
 		std::vector<unsigned char> buffer;

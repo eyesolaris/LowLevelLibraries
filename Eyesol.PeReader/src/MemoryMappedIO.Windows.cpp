@@ -276,7 +276,7 @@ namespace Eyesol::MemoryMappedIO
 		if (absoluteOffset >= _length)
 		{
 			throw std::out_of_range{ "absolute offset is too long: "
-				+ std::to_string(absoluteOffset) + ", maximum " + std::to_string(_length) + " is allowed"};
+				+ std::to_string(absoluteOffset) + ", maximum " + std::to_string(_length) + " is allowed" };
 		}
 		// If cache is empty
 		std::size_t offsetInRegion;
@@ -307,6 +307,43 @@ namespace Eyesol::MemoryMappedIO
 			throw std::runtime_error{ "object is empty" };
 		}
 		return MemoryMappedFileRegion(_impl, offset, length);
+	}
+
+	std::size_t MemoryMappedFile::read(unsigned char* buf, std::size_t bufLength, std::uint64_t fileOffset, std::size_t bufOffset, std::size_t readLength) const
+	{
+		if (fileOffset >= _length)
+		{
+			throw std::out_of_range{ "File offset is out of range" };
+		}
+		std::size_t remainingBufLength = bufLength - bufOffset;
+		std::size_t bytesToRead = readLength;
+		if (bytesToRead > remainingBufLength)
+		{
+			bytesToRead = remainingBufLength;
+		}
+		std::uint64_t remainingFileLength = _length - fileOffset;
+		if (bytesToRead > remainingFileLength)
+		{
+			bytesToRead = { static_cast<std::size_t>(remainingFileLength) };
+		}
+		// Allocate first region
+		unsigned char* currentBufPtr = buf;
+		std::uint64_t currentAbsoluteOffset = fileOffset;
+		std::size_t bytesRead = 0;
+		do
+		{
+			std::uint64_t baseOffset;
+			std::size_t regionLength;
+			std::size_t offsetInRegion;
+			calculateMapRegionParameters(currentAbsoluteOffset, _length, &baseOffset, &regionLength, &offsetInRegion);
+			std::size_t currentRegionBytesToRead = std::min(regionLength - offsetInRegion, bytesToRead - bytesRead);
+			MemoryMappedFileRegion currentRegion = mapRegion(baseOffset, regionLength);
+			std::memcpy(currentBufPtr, currentRegion.data() + offsetInRegion, currentRegionBytesToRead);
+			currentBufPtr += currentRegionBytesToRead;
+			bytesRead += currentRegionBytesToRead;
+			currentAbsoluteOffset += currentRegionBytesToRead;
+		} while (bytesRead != bytesToRead);
+		return bytesRead;
 	}
 
 	MemoryMappedFileRegion::MemoryMappedFileRegion(const std::shared_ptr<MemoryMappedFileImpl>& file, std::uint64_t offset, std::size_t length)

@@ -23,6 +23,8 @@ namespace Eyesol::MemoryMappedIO
 
 		const unsigned char* begin() const;
 		const unsigned char* end() const;
+
+		const unsigned char* data() const { return begin(); }
 		// Total region length
 		std::size_t length() const { return _length; }
 		// Offset in the file
@@ -71,6 +73,8 @@ namespace Eyesol::MemoryMappedIO
 
 		MemoryMappedFileIterator begin() const;
 		MemoryMappedFileIterator end() const;
+
+		std::size_t read(unsigned char* buf, std::size_t bufLength, std::uint64_t fileOffset, std::size_t bufOffset, std::size_t readLength) const;
 
 		unsigned char operator[](std::uint64_t absoluteOffset) const;
 
