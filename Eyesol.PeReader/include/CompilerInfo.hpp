@@ -117,7 +117,7 @@ define _COMPILER_TYPE_IMPL_ Unknown
  * add an ARM and IA64 version detection               *
  *******************************************************/
 
-	namespace Eyesol
+namespace Eyesol
 {
 	namespace Cpu
 	{
@@ -229,6 +229,9 @@ define _COMPILER_TYPE_IMPL_ Unknown
 
 // Code taken and adapted from en.cppreference.com
 // URL: https://en.cppreference.com/w/cpp/feature_test
+// LICENSE for this piece of code:
+// Comnmons Attribution-Sharealike 3.0 Unported License (CC-BY-SA_
+// LICENSE link: http://creativecommons.org/licenses/by-sa/3.0/
 namespace Eyesol::Compiler
 {
 	struct CompilerFeaturesToPrint
