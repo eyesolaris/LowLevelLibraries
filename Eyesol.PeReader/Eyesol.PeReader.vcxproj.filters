@@ -45,6 +45,9 @@
     <ClCompile Include="src\Runtime.Windows.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="MemoryMappedIO.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Eyesol.PeReader.hpp">

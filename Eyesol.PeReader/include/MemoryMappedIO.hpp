@@ -99,13 +99,11 @@ namespace Eyesol::MemoryMappedIO
 
 	class EYESOLPEREADER_API MemoryMappedFileIterator
 	{
-		class MemoryMappedFileIteratorImpl;
-
 	public:
 		MemoryMappedFileIterator(const MemoryMappedFileIterator& other);
 		MemoryMappedFileIterator(MemoryMappedFileIterator&& other) noexcept;
 
-		unsigned char operator*() const;
+		MemoryMappedFileRegion operator*() const;
 		// preincrement
 		MemoryMappedFileIterator& operator++();
 
@@ -113,15 +111,43 @@ namespace Eyesol::MemoryMappedIO
 		bool operator==(const MemoryMappedFileIterator& other) const noexcept;
 
 		MemoryMappedFileIterator()
+			: _baseInFile{},
+			_fileLength{},
+			_mapRegionLength{},
+			_lastRegion{ false }
 		{
 		}
 
-		MemoryMappedFileIterator(const MemoryMappedFile& file, std::uint64_t offset);
+		MemoryMappedFileIterator(const MemoryMappedFile& file, std::uint64_t offset = 0U);
+
+		std::uint64_t getBaseAddress() const { return _baseInFile; }
+		bool empty() const { return _mapRegionLength == 0; }
 
 	private:
-		std::shared_ptr<MemoryMappedFileIteratorImpl> _iteratorImpl;
+		std::shared_ptr<MemoryMappedFileImpl> _iteratorImpl;
+		std::uint64_t _baseInFile;
+		std::uint64_t _fileLength;
+		std::size_t _mapRegionLength;
+		bool _lastRegion;
 
 		friend class MemoryMappedFile;
+
+		bool RecalculateData(std::uint64_t absoluteOffset);
+
+		void invalidate()
+		{
+			_iteratorImpl = nullptr;
+			_baseInFile = 0;
+			_mapRegionLength = 0;
+		}
 	};
+
+	std::size_t CalculateMapRegionParameters(
+		std::uint64_t absoluteOffset, // Absolute offset in the file
+		std::uint64_t fileLength, // Total file length in bytes
+		std::uint64_t* baseOffsetPtr, // Calculated offset of the region in the file
+		std::size_t* regionLengthPtr, // Calculated length of the allocated region
+		std::size_t* offsetInRegionPtr // Starting offset in the region
+	); // returns granularity
 }
-#endif
+#endif // _MEMORYMAPPEDIO_H_

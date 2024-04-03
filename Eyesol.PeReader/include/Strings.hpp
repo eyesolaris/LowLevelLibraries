@@ -8,4 +8,4 @@ namespace Eyesol
 	EYESOLPEREADER_API std::string wstring_to_utf8string(std::wstring str);
 	EYESOLPEREADER_API std::wstring u16string_to_wstring(std::u16string str);
 }
-#endif
+#endif // _STRINGS_H_

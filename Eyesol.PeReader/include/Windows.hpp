@@ -1,8 +1,10 @@
-#if defined _WIN32
-#	pragma once
-#	include "framework.hpp"
-#	include "win32_include.hpp"
-#	include "Strings.hpp"
+#if !defined _WINDOWS_H_
+#	define _WINDOWS_H_
+#	if defined _WIN32
+#		include "framework.hpp"
+#		include "win32_include.hpp"
+#		include "Strings.hpp"
+#		include "WindowsConsoleOutputFix.hpp"
 
 namespace Eyesol::Windows
 {
@@ -87,4 +89,5 @@ namespace Eyesol::Windows
 	};
 	
 }
+#	endif
 #endif

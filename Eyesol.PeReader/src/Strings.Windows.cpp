@@ -5,13 +5,17 @@ namespace Eyesol
 {
 	std::wstring utf8string_to_wstring(std::string str)
 	{
+		if (str.size() > std::numeric_limits<DWORD>::max())
+		{
+			throw std::runtime_error{ "Too long string" }; // We can work it around
+		}
 		// first, find out a necessary buffer size
 		int newStringCharsCount =
 			::MultiByteToWideChar(
 				CP_UTF8, // A defult encoding (May be CP_ACP?)
 				0, // flags
 				str.c_str(), // byte string
-				-1, // byte string length (in case of -1, string must be null-terminated)
+				static_cast<DWORD>(str.size()), // byte string length plus NULL (in case of -1, string must be null-terminated)
 				nullptr, // a pointer to an output buffer. Ignored when the next param is 0
 				0 // size of an output buffer. Zero makes a function to return a required buffer size
 			);
@@ -29,7 +33,7 @@ namespace Eyesol
 				CP_UTF8,
 				0,
 				str.c_str(),
-				-1,
+				static_cast<DWORD>(str.size()),
 				newString.data(),
 				static_cast<unsigned int>(newString.length())
 			);
@@ -42,6 +46,10 @@ namespace Eyesol
 
 	std::string wstring_to_utf8string(std::wstring str)
 	{
+		if (str.size() > std::numeric_limits<DWORD>::max())
+		{
+			throw std::runtime_error{ "Too long string" }; // We can work it around
+		}
 		BOOL wasDefaultCharacterUsed = FALSE; // were there some unconvertable characters
 		// first, find out a necessary buffer size
 		int newStringCharsCount =
@@ -49,7 +57,7 @@ namespace Eyesol
 				CP_UTF8, // A defult encoding (May be CP_ACP?)
 				0, // flags
 				str.c_str(), // wide string
-				-1, // wide string length (in case of -1, string must be null-terminated)
+				static_cast<DWORD>(str.size()), // wide string length (in case of -1, string must be null-terminated)
 				nullptr, // a pointer to an output buffer. Ignored when the next param is 0
 				0, // size of an output buffer. Zero makes a function to return a required buffer size
 				nullptr, // default character pointer
@@ -69,7 +77,7 @@ namespace Eyesol
 				CP_UTF8,
 				0,
 				str.data(),
-				-1,
+				static_cast<DWORD>(str.size()),
 				newString.data(),
 				static_cast<unsigned int>(newString.length()),
 				nullptr,

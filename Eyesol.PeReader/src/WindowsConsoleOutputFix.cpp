@@ -1,11 +1,13 @@
 #if defined _WIN32
-#include <iostream>
-#include "Strings.hpp"
-#include "WindowsConsoleOutputFix.hpp"
-#include "win32_include.hpp"
+#	include <iostream>
+#	include <cstdlib>
+#	include "Strings.hpp"
+#	include "WindowsConsoleOutputFix.hpp"
+#	include "win32_include.hpp"
 
 namespace
 {
+	// Code from StackOverflow
 	class ConsoleStreamBufWin32 : public std::streambuf
 	{
 	public:
@@ -19,8 +21,8 @@ namespace
 		virtual int_type overflow(int_type c = traits_type::eof());
 
 	private:
-		HANDLE const m_handle;
-		bool const m_isInput;
+		const HANDLE m_handle;
+		const bool m_isInput;
 		std::string m_buffer;
 	};
 
@@ -54,9 +56,29 @@ namespace
 				return 0;
 			}
 
-			std::wstring const wideBuffer = Eyesol::utf8string_to_wstring(m_buffer);
-			DWORD writtenSize;
-			::WriteConsoleW(m_handle, wideBuffer.c_str(), wideBuffer.size(), &writtenSize, NULL);
+			constexpr const DWORD MAX_DWORD = std::numeric_limits<DWORD>::max();
+
+			const std::wstring wideBuffer = Eyesol::utf8string_to_wstring(m_buffer);
+			std::size_t totalCharacters = wideBuffer.size();
+			std::size_t writeCharactersLeft = totalCharacters;
+
+			while (writeCharactersLeft > 0)
+			{
+				DWORD charactersToWriteNow = static_cast<DWORD>(
+					std::min(
+						writeCharactersLeft,
+						static_cast<std::size_t>(MAX_DWORD)
+					)
+				);
+				DWORD writtenSize;
+				::WriteConsoleW(
+					m_handle,
+					wideBuffer.c_str() + (totalCharacters - writeCharactersLeft), // avoid overflow by grouping operations
+					charactersToWriteNow,
+					&writtenSize,
+					nullptr);
+				writeCharactersLeft -= writtenSize;
+			}
 		}
 
 		m_buffer.clear();
@@ -75,7 +97,12 @@ namespace
 		{
 			wchar_t wideBuffer[128];
 			DWORD readSize;
-			if (!::ReadConsoleW(m_handle, wideBuffer, ARRAYSIZE(wideBuffer) - 1, &readSize, NULL))
+			if (!::ReadConsoleW(
+				m_handle,
+				wideBuffer,
+				ARRAYSIZE(wideBuffer) - 1,
+				&readSize,
+				nullptr))
 			{
 				return traits_type::eof();
 			}

@@ -53,4 +53,4 @@ namespace Eyesol::Memory
 		}
 	}
 }
-#endif
+#endif // _MEMORY_H_

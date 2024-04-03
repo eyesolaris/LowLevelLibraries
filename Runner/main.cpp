@@ -3,10 +3,12 @@
 #include <Eyesol.PeReader.hpp>
 #include <vector>
 #include <array>
+#include <chrono>
 
 int main()
 {
 	Eyesol::Windows::FixStdStreams();
+	Eyesol::Compiler::PrintCompilerFeatures(Eyesol::Compiler::CompilerFeaturesToPrint{});
 	try
 	{
 		//Eyesol::MemoryMappedIO::MemoryMappedFile file("D:\\utf8.txt");
@@ -14,22 +16,21 @@ int main()
 		std::array<unsigned char, 65536 * 2> arr{};
 		file.read(arr.data(), arr.size(), 1, 0, arr.size());
 		auto fileLength = file.length();
-		std::cout << "File length: " << fileLength << std::endl;
-		std::vector<unsigned char> buffer;
-		buffer.reserve(fileLength);
-		auto current = file.begin();
-		auto end = file.end();
-		for (auto byte : file)
+		std::cout << "File length: " << fileLength << " (" << fileLength / 1024. / 1024 << " MiB)" << std::endl;
+		std::vector<unsigned char> buffer(fileLength, 0);
+		//buffer.reserve(fileLength);
+
+		auto t1 = std::chrono::steady_clock::now();
+		std::size_t currentPos = 0;
+		for (auto region : file)
 		{
-			buffer.push_back(byte);
-			std::cout << byte;
-			++current;
+			std::memcpy(buffer.data() + currentPos, region.begin(), region.length());
+			currentPos += region.length();
 		}
-		/*for (auto ch : file)
-		{
-			buffer.push_back(ch);
-		}*/
-		bool ok = current < end;
+		auto t2 = std::chrono::steady_clock::now();
+		auto time = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>((t2 - t1));
+		std::cout << std::endl;
+		std::cout << "Elapsed: " << time / 1. << std::endl;
 		auto bufLength = buffer.size();
 		std::cout << std::endl;
 	}

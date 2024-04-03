@@ -6,4 +6,4 @@ namespace Eyesol::Runtime
 {
 	std::size_t AllocationGranularity();
 }
-#endif
+#endif // _RUNTIME_H_

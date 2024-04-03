@@ -26,4 +26,4 @@
 #	else
 #		define EYESOLPEREADER_API __declspec(dllimport)
 #	endif
-#endif
+#endif // _FRAMEWORK_H_

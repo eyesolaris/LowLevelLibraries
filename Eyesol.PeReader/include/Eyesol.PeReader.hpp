@@ -17,4 +17,4 @@ namespace Eyesol
 
 	EYESOLPEREADER_API int start();
 }
-#endif
+#endif // _EYESOL_PEREADER_H_

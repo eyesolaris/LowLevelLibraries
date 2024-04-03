@@ -1,4 +1,5 @@
 #if defined _WIN32
+#	include <cassert>
 #	include "MemoryMappedIO.hpp"
 #	include "Runtime.hpp"
 #	include "Windows.hpp"
@@ -9,34 +10,6 @@ namespace Eyesol::MemoryMappedIO
 {
 	namespace
 	{
-		void calculateMapRegionParameters(std::uint64_t absoluteOffset, std::uint64_t fileLength, std::uint64_t* baseOffsetPtr, std::size_t* regionLengthPtr, std::size_t* offsetInRegionPtr)
-		{
-			std::size_t granularity = { Eyesol::Runtime::AllocationGranularity() };
-			// Allocate a new region
-			std::uint64_t base{ absoluteOffset / granularity * granularity };
-			std::size_t length = granularity;
-			/*if (base + regionLength < base) // uint64 overflow. Should be impossible
-			{
-				throw std::overflow_error{ "too long file" };
-			}*/
-			if (base + length > fileLength)
-			{
-				length = granularity - (base + length - fileLength);
-			}
-			if (baseOffsetPtr != nullptr)
-			{
-				*baseOffsetPtr = base;
-			}
-			if (regionLengthPtr != nullptr)
-			{
-				*regionLengthPtr = length;
-			}
-			if (offsetInRegionPtr != nullptr)
-			{
-				*offsetInRegionPtr = absoluteOffset % granularity;
-			}
-		}
-
 		void* createMapViewOfFile(HANDLE fileMapping, std::uint64_t offset, std::size_t length, std::uint64_t totalFileLength)
 		{
 			auto allocGranularity = Eyesol::Runtime::AllocationGranularity();
@@ -282,7 +255,7 @@ namespace Eyesol::MemoryMappedIO
 		std::size_t offsetInRegion;
 		std::uint64_t baseOffset;
 		std::size_t regionLength;
-		calculateMapRegionParameters(absoluteOffset, _length, &baseOffset, &regionLength, &offsetInRegion);
+		CalculateMapRegionParameters(absoluteOffset, _length, &baseOffset, &regionLength, &offsetInRegion);
 		if (_regionCache._impl == nullptr || !_regionCache.withinRange(absoluteOffset))
 		{
 			_regionCache = this->mapRegion(baseOffset, regionLength);
@@ -333,7 +306,7 @@ namespace Eyesol::MemoryMappedIO
 			std::uint64_t baseOffset;
 			std::size_t regionLength;
 			std::size_t offsetInRegion;
-			calculateMapRegionParameters(fileOffset + bytesRead, _length, &baseOffset, &regionLength, &offsetInRegion);
+			CalculateMapRegionParameters(fileOffset + bytesRead, _length, &baseOffset, &regionLength, &offsetInRegion);
 			std::size_t currentRegionBytesToRead = std::min(regionLength - offsetInRegion, bytesToRead - bytesRead);
 			MemoryMappedFileRegion currentRegion = mapRegion(baseOffset, regionLength);
 			// Buffers must not overlap
@@ -381,117 +354,58 @@ namespace Eyesol::MemoryMappedIO
 		return absoluteOffset >= startingOffset && absoluteOffset < endingOffset;
 	}
 
-
-	class MemoryMappedFileIterator::MemoryMappedFileIteratorImpl
-	{
-	public:
-		MemoryMappedFileIteratorImpl()
-			: _baseInFile{},
-			_offsetInRegion{}
-		{
-		}
-
-		MemoryMappedFileRegion _currentRegion;
-		std::uint64_t _baseInFile;
-		std::size_t _offsetInRegion;
-
-		std::uint64_t getAbsoluteOffset() const
-		{
-			return _baseInFile + _offsetInRegion;
-		}
-
-		unsigned char read() const
-		{
-			return _currentRegion.begin()[_offsetInRegion];
-		}
-
-		bool withinRange(std::size_t additionalOffset) const
-		{
-			return _currentRegion.withinRange(getAbsoluteOffset() + additionalOffset);
-		}
-	};
-
 	MemoryMappedFileIterator::MemoryMappedFileIterator(const MemoryMappedFileIterator& other)
-		: _iteratorImpl{ std::make_unique<MemoryMappedFileIteratorImpl>(*other._iteratorImpl) }
+		: _iteratorImpl{ std::make_shared<MemoryMappedFileImpl>(*other._iteratorImpl) }
 	{
-	}
-
-	MemoryMappedFileIterator::MemoryMappedFileIterator(MemoryMappedFileIterator&& other) noexcept
-		: _iteratorImpl{ std::move(other._iteratorImpl) }
-	{
-	}
-
-	MemoryMappedFileIterator::MemoryMappedFileIterator(const MemoryMappedFile& file, std::uint64_t absoluteOffset)
-		: _iteratorImpl{ std::make_shared<MemoryMappedFileIteratorImpl> () }
-	{
-		std::uint64_t baseOffset;
-		std::size_t offsetInRegion;
-		std::size_t mapRegionLength;
-		calculateMapRegionParameters(absoluteOffset, file.length(), &baseOffset, &mapRegionLength, &offsetInRegion);
-		_iteratorImpl->_currentRegion = file.mapRegion(absoluteOffset, mapRegionLength);
-		_iteratorImpl->_baseInFile = baseOffset;
-		_iteratorImpl->_offsetInRegion = offsetInRegion;
 	}
 
 	MemoryMappedFileIterator& MemoryMappedFileIterator::operator++()
 	{
-		// If current position is within the current mapped region
-		if (_iteratorImpl->withinRange(1))
+		// first, check if the file is ended
+		if (_lastRegion)
 		{
-			_iteratorImpl->_offsetInRegion++;
+			// No more regions
+			// invalidate the iterator
+			invalidate();
+			return *this;
+		}
+		std::uint64_t nextAbsoluteOffset = _baseInFile + _mapRegionLength;
+		bool ok = RecalculateData(nextAbsoluteOffset);
+		assert(ok);
+		/*MemoryMappedFile f{_iteratorImpl->_currentRegion};
+		std::uint64_t fileSize = { f.length() };
+		if (nextAbsoluteOffset >= fileSize)
+		{
+			// Invalidate an iterator
+			_iteratorImpl = nullptr;
 		}
 		else
 		{
-			std::uint64_t nextAbsoluteOffset = _iteratorImpl->getAbsoluteOffset() + 1;
-			// first, check if file is ended
-			MemoryMappedFile f{ _iteratorImpl->_currentRegion };
-			std::uint64_t fileSize = { f.length() };
-			if (nextAbsoluteOffset >= fileSize)
-			{
-				// Invalidate an iterator
-				_iteratorImpl = nullptr;
-			}
-			else
-			{
-				// Allocate a new mapped region
-				// Allocate a new region
-				std::uint64_t base, regionLength;
-				calculateMapRegionParameters(nextAbsoluteOffset, fileSize, &base, &regionLength, nullptr);
-				_iteratorImpl->_currentRegion = std::move(f.mapRegion(base, regionLength));
-				_iteratorImpl->_baseInFile = base;
-				_iteratorImpl->_offsetInRegion = 0;
-			}
-		}
+			// Allocate a new mapped region
+			// Allocate a new region
+			std::uint64_t base, regionLength;
+			CalculateMapRegionParameters(nextAbsoluteOffset, fileSize, &base, &regionLength, nullptr);
+			_iteratorImpl->_currentRegion = std::move(f.mapRegion(base, regionLength));
+			_iteratorImpl->_baseInFile = base;
+			_iteratorImpl->_offsetInRegion = 0;
+		}*/
 		return *this;
-	}
-
-	bool MemoryMappedFileIterator::operator==(const MemoryMappedFileIterator& other) const noexcept
-	{
-		if (_iteratorImpl == nullptr && other._iteratorImpl == nullptr)
-		{
-			return true;
-		}
-		if (_iteratorImpl == nullptr || other._iteratorImpl == nullptr)
-		{
-			return false;
-		}
-		return _iteratorImpl->_currentRegion._impl == other._iteratorImpl->_currentRegion._impl;
 	}
 
 	std::partial_ordering MemoryMappedFileIterator::operator<=>(const MemoryMappedFileIterator& other) const
 	{
-		bool equal = *this == other;
-		if (!equal)
-		{
-			return std::partial_ordering::unordered;
-		}
-		else if (_iteratorImpl == nullptr && other._iteratorImpl == nullptr)
+		if (empty() && other.empty())
 		{
 			return std::partial_ordering::equivalent;
 		}
-		auto thisAbsoluteOffset = _iteratorImpl->getAbsoluteOffset();
-		auto otherAbsoluteOffset = other._iteratorImpl->getAbsoluteOffset();
-		if (thisAbsoluteOffset == otherAbsoluteOffset)
+		if (this->_iteratorImpl != other._iteratorImpl)
+		{
+			return std::partial_ordering::unordered;
+		}
+		auto thisAbsoluteOffset = _baseInFile;
+		auto otherAbsoluteOffset = other._baseInFile;
+		return thisAbsoluteOffset <=> otherAbsoluteOffset;
+		/*if (thisAbsoluteOffset == otherAbsoluteOffset)
 		{
 			return std::partial_ordering::equivalent;
 		}
@@ -504,16 +418,17 @@ namespace Eyesol::MemoryMappedIO
 		{
 			// Else return a negative value
 			return std::partial_ordering::greater;
-		}
+		}*/
 	}
 
-	unsigned char MemoryMappedFileIterator::operator*() const
+	MemoryMappedFileRegion MemoryMappedFileIterator::operator*() const
 	{
-		if (!_iteratorImpl)
+		if (empty())
 		{
 			throw std::runtime_error{ "Invalid iterator, or end of file is reached" };
 		}
-		return _iteratorImpl->read();
+		MemoryMappedFile file{ _iteratorImpl };
+		return file.mapRegion(_baseInFile, _mapRegionLength);
 	}
 }
 #endif
