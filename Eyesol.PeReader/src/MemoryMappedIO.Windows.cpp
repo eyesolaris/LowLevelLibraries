@@ -65,7 +65,7 @@ namespace Eyesol::MemoryMappedIO
 		std::uint64_t _fileLength;
 
 		// TODO: create a custom iterator
-		MemoryMappedFileImpl(HANDLE fileHandle, HANDLE fileMappingObjectHandle, std::uint64_t fileLength)
+		MemoryMappedFileImpl(HANDLE fileHandle, HANDLE fileMappingObjectHandle, std::uint64_t fileLength) noexcept
 			: _fileHandle{ fileHandle },
 			_fileMappingObjectHandle{ fileMappingObjectHandle },
 			_fileLength{ fileLength }
@@ -189,7 +189,16 @@ namespace Eyesol::MemoryMappedIO
 				fileMappingObject = fileMappingObjectHandle;
 			}
 			fileLength = fileSize;
-			return std::make_unique<MemoryMappedFileImpl>(openedFile.release(), fileMappingObject.release(), fileSize);
+			// Construct a handle to return (don't release the handles yet,
+			// in case of make_unique throwing an exception)
+			auto ptr = std::make_unique<MemoryMappedFileImpl>(
+				openedFile.getHandle(),
+				fileMappingObject.getHandle(),
+				fileSize);
+			// Prevent handles from being untimely closed by the temporary handle holders
+			openedFile.release();
+			fileMappingObject.release();
+			return std::move(ptr);
 		}
 
 		std::uint64_t GetFileLength(const MemoryMappedFileImpl& file)
