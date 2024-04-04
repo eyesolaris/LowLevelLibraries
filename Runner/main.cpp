@@ -14,7 +14,7 @@ int main()
 		//Eyesol::MemoryMappedIO::MemoryMappedFile file("D:\\utf8.txt");
 		Eyesol::MemoryMappedIO::MemoryMappedFile file("C:\\Windows\\explorer.exe");
 		std::array<unsigned char, 65536 * 2> arr{};
-		file.read(arr.data(), arr.size(), 1, 0, arr.size());
+		file.Read(arr.data(), arr.size(), 1, 0, arr.size());
 		auto fileLength = file.length();
 		std::cout << "File length: " << fileLength << " (" << fileLength / 1024. / 1024 << " MiB)" << std::endl;
 		std::vector<unsigned char> buffer(fileLength, 0);

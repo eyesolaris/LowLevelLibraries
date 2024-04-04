@@ -1,5 +1,5 @@
+// Windows-specific MemoryMappedIO implementation
 #if defined _WIN32
-#	include <cassert>
 #	include "MemoryMappedIO.hpp"
 #	include "Runtime.hpp"
 #	include "Windows.hpp"
@@ -8,9 +8,13 @@ using namespace Eyesol::Windows;
 
 namespace Eyesol::MemoryMappedIO
 {
+	#pragma region nameless namespace (Windows-specific functionality)
 	namespace
 	{
-		void* createMapViewOfFile(HANDLE fileMapping, std::uint64_t offset, std::size_t length, std::uint64_t totalFileLength)
+		// Windows limits
+		constexpr std::uint16_t MAX_LONG_PATH_LENGTH = 32767;
+
+		void* CreateMapViewOfFile(HANDLE fileMapping, std::uint64_t offset, std::size_t length, std::uint64_t totalFileLength)
 		{
 			auto allocGranularity = Eyesol::Runtime::AllocationGranularity();
 			if (offset % allocGranularity != 0)
@@ -50,26 +54,82 @@ namespace Eyesol::MemoryMappedIO
 			return baseAddress;
 		}
 	}
+	#pragma endregion
 
-	class MemoryMappedFileRegion;
-
-	class MemoryMappedFileImpl
+	#pragma region Windows-specific Impl::MemoryMappedFileImpl
+	class Impl::MemoryMappedFileImpl
 	{
 	public:
 		HANDLE _fileHandle;
 		HANDLE _fileMappingObjectHandle;
-		std::uint64_t _fileSize;
+		std::uint64_t _fileLength;
 
-		MemoryMappedFileImpl(std::string path)
-			: MemoryMappedFileImpl{ utf8string_to_wstring(path) }
+		// TODO: create a custom iterator
+		MemoryMappedFileImpl(HANDLE fileHandle, HANDLE fileMappingObjectHandle, std::uint64_t fileLength)
+			: _fileHandle{ fileHandle },
+			_fileMappingObjectHandle{ fileMappingObjectHandle },
+			_fileLength{ fileLength }
 		{
 		}
 
-		MemoryMappedFileImpl(std::wstring path)
+		~MemoryMappedFileImpl()
 		{
-			if (path.length() > 32767)
+			BOOL ok = ::CloseHandle(_fileMappingObjectHandle);
+			ok = ::CloseHandle(_fileHandle);
+			_fileMappingObjectHandle = INVALID_HANDLE_VALUE;
+			_fileHandle = INVALID_HANDLE_VALUE;
+		}
+	};
+	#pragma endregion
+
+	#pragma region Windows-specific Impl::MemoryMappedFileRegionImpl
+	class Impl::MemoryMappedFileRegionImpl
+	{
+	public:
+		// Holds file handles opened
+		std::shared_ptr<Impl::MemoryMappedFileImpl> _impl;
+		unsigned char* _mapViewBaseAddress;
+		// An offset of the view in the file
+		std::uint64_t _offset;
+		// A length of the view
+		std::uint64_t _length;
+
+		MemoryMappedFileRegionImpl(const std::shared_ptr<Impl::MemoryMappedFileImpl>& fileHandle, void* regionStart, std::uint64_t offset, std::uint64_t length)
+			: _impl{ fileHandle },
+			_mapViewBaseAddress{ reinterpret_cast<unsigned char*>(regionStart) },
+			_offset{ offset },
+			_length{ length }
+		{
+		}
+
+		~MemoryMappedFileRegionImpl()
+		{
+			::UnmapViewOfFile(_mapViewBaseAddress);
+		}
+
+		const unsigned char* begin() const { return _mapViewBaseAddress; }
+		const unsigned char* end() const { return _mapViewBaseAddress + _length; }
+	};
+	#pragma endregion
+
+	#pragma region Windows-specific Impl namespace implementation
+	namespace Impl
+	{
+		std::shared_ptr<MemoryMappedFileImpl> OpenFile(::std::string path, std::uint64_t& fileLength)
+		{
+			return OpenFile(utf8string_to_wstring(path), fileLength);
+		}
+
+		std::shared_ptr<MemoryMappedFileImpl> OpenFile(::std::u16string path, std::uint64_t& fileLength)
+		{
+			return OpenFile(u16string_to_wstring(path), fileLength);
+		}
+
+		std::shared_ptr<MemoryMappedFileImpl> OpenFile(::std::wstring path, std::uint64_t& fileLength)
+		{
+			if (path.length() > MAX_LONG_PATH_LENGTH)
 			{
-				throw std::out_of_range{ "Too long file name: longer than 32767" };
+				throw std::out_of_range{ "Too long file name: longer than " + std::to_string(MAX_LONG_PATH_LENGTH) };
 			}
 			if (path.length() > MAX_PATH)
 			{
@@ -105,6 +165,10 @@ namespace Eyesol::MemoryMappedIO
 				{
 					throw std::runtime_error{ FormatWindowsErrorMessage(::GetLastError(), "determining a file size") };
 				}
+				if (largeInt.QuadPart < 0)
+				{
+					throw std::runtime_error{ "File size is less than zero" };
+				}
 				fileSize = static_cast<ULONGLONG>(largeInt.QuadPart);
 			}
 			WindowsHandle fileMappingObject;
@@ -124,311 +188,46 @@ namespace Eyesol::MemoryMappedIO
 				}
 				fileMappingObject = fileMappingObjectHandle;
 			}
-			_fileHandle = openedFile.release();
-			_fileMappingObjectHandle = fileMappingObject.release();
-			_fileSize = fileSize;
+			fileLength = fileSize;
+			return std::make_unique<MemoryMappedFileImpl>(openedFile.release(), fileMappingObject.release(), fileSize);
 		}
 
-		MemoryMappedFileImpl(std::u16string path)
-			: MemoryMappedFileImpl{ u16string_to_wstring(path) }
+		std::uint64_t GetFileLength(const MemoryMappedFileImpl& file)
 		{
+			return file._fileLength;
 		}
 
-		std::uint64_t fileSize() const { return _fileSize; }
-
-		// TODO: create a custom iterator
-
-		~MemoryMappedFileImpl()
+		const std::shared_ptr<MemoryMappedFileImpl>& get_impl(const MemoryMappedFileRegionImpl& regionHandle)
 		{
-			BOOL ok = ::CloseHandle(_fileMappingObjectHandle);
-			ok = ::CloseHandle(_fileHandle);
-			_fileMappingObjectHandle = INVALID_HANDLE_VALUE;
-			_fileHandle = INVALID_HANDLE_VALUE;
+			return regionHandle._impl;
 		}
 
-	private:
-		friend class MemoryMappedFileRegion::MemoryMappedFileRegionImpl;
-	};
+		void GetRegionOffsetAndLength(const std::shared_ptr<MemoryMappedFileRegionImpl>& regionHandle, std::uint64_t& offset, std::uint64_t& length)
+		{
+			offset = regionHandle->_offset;
+			length = regionHandle->_length;
+		}
 
-	class MemoryMappedFileRegion::MemoryMappedFileRegionImpl
-	{
-	public:
-		// It holds file handles opened
-		std::shared_ptr<MemoryMappedFileImpl> _impl;
-		unsigned char* _mapViewBaseAddress;
-		// An offset of the view in the file
-		std::uint64_t _offset;
-		// A length of the view
-		std::uint64_t _length;
-
-		MemoryMappedFileRegionImpl(const std::shared_ptr<MemoryMappedFileImpl>& file, std::uint64_t offset, std::uint64_t length)
-			: _impl{ file },
-			_mapViewBaseAddress{ reinterpret_cast<unsigned char*>(createMapViewOfFile(
-				_impl->_fileMappingObjectHandle,
+		std::shared_ptr<MemoryMappedFileRegionImpl> MapRegion(const std::shared_ptr<Impl::MemoryMappedFileImpl>& fileHandle, std::uint64_t offset, std::uint64_t length)
+		{
+			void* regionStart = reinterpret_cast<unsigned char*>(CreateMapViewOfFile(
+				fileHandle->_fileMappingObjectHandle,
 				offset,
 				length,
-				_impl->_fileSize)) },
-			_offset{ offset },
-			_length{ length }
-		{
+				fileHandle->_fileLength));
+			return std::make_shared<MemoryMappedFileRegionImpl>(fileHandle, regionStart, offset, length);
 		}
 
-		~MemoryMappedFileRegionImpl()
+		const unsigned char* RegionBegin(const Impl::MemoryMappedFileRegionImpl& region)
 		{
-			::UnmapViewOfFile(_mapViewBaseAddress);
+			return region.begin();
 		}
 
-		const unsigned char* begin() const { return _mapViewBaseAddress; }
-		const unsigned char* end() const { return _mapViewBaseAddress + _length; }
-		std::uint64_t offset() const { return _offset; }
-		std::size_t length() const { return _length; }
-
-	private:
-		friend class MemoryMappedFile;
-	};
-
-	MemoryMappedFile::MemoryMappedFile() noexcept
-		: _length{ 0 }
-	{
-	}
-
-	MemoryMappedFile::MemoryMappedFile(std::string path)
-		: _impl{ std::move(std::make_shared<MemoryMappedFileImpl>(path)) },
-		_length{ _impl->fileSize() }
-	{
-	}
-
-	MemoryMappedFile::MemoryMappedFile(std::wstring path)
-		: _impl{ std::move(std::make_shared<MemoryMappedFileImpl>(path)) },
-		_length{ _impl->fileSize() }
-	{
-
-	}
-
-	MemoryMappedFile::MemoryMappedFile(std::u16string path)
-		: _impl{ std::move(std::make_shared<MemoryMappedFileImpl>(path)) },
-		_length{ _impl->fileSize() }
-	{
-	}
-
-	MemoryMappedFile::MemoryMappedFile(const MemoryMappedFileRegion& region)
-		: _impl{ region._impl->_impl },
-		_length{ region._impl->_impl->_fileSize }
-	{
-	}
-
-	MemoryMappedFile::MemoryMappedFile(const std::shared_ptr<MemoryMappedFileImpl>& impl)
-		: _impl{ impl },
-		_length{ impl->_fileSize }
-	{
-	}
-
-
-	MemoryMappedFile::MemoryMappedFile(MemoryMappedFile&& other) noexcept
-		: _impl{ std::move(other._impl) },
-		_length{ other._length }
-	{
-		other._length = 0;
-	}
-
-
-	MemoryMappedFile::~MemoryMappedFile()
-	{
-	}
-
-	MemoryMappedFile& MemoryMappedFile::operator=(MemoryMappedFile&& other) noexcept
-	{
-		_impl = std::move(other._impl);
-		_length = other._length;
-		other._length = 0;
-		return *this;
-	}
-
-	unsigned char MemoryMappedFile::operator[](std::uint64_t absoluteOffset) const
-	{
-		if (absoluteOffset >= _length)
+		const unsigned char* RegionEnd(const MemoryMappedFileRegionImpl& region)
 		{
-			throw std::out_of_range{ "absolute offset is too long: "
-				+ std::to_string(absoluteOffset) + ", maximum " + std::to_string(_length) + " is allowed" };
+			return region.end();
 		}
-		// If cache is empty
-		std::size_t offsetInRegion;
-		std::uint64_t baseOffset;
-		std::size_t regionLength;
-		CalculateMapRegionParameters(absoluteOffset, _length, &baseOffset, &regionLength, &offsetInRegion);
-		if (_regionCache._impl == nullptr || !_regionCache.withinRange(absoluteOffset))
-		{
-			_regionCache = this->mapRegion(baseOffset, regionLength);
-		}
-		return _regionCache[offsetInRegion];
 	}
-
-	MemoryMappedFileIterator MemoryMappedFile::begin() const
-	{
-		return MemoryMappedFileIterator{ *this, 0 };
-	}
-
-	MemoryMappedFileIterator MemoryMappedFile::end() const
-	{
-		return MemoryMappedFileIterator{};
-	}
-
-	MemoryMappedFileRegion MemoryMappedFile::mapRegion(std::uint64_t offset, std::size_t length) const
-	{
-		if (empty())
-		{
-			throw std::runtime_error{ "object is empty" };
-		}
-		return MemoryMappedFileRegion(_impl, offset, length);
-	}
-
-	std::size_t MemoryMappedFile::read(unsigned char* buf, std::size_t bufLength, std::uint64_t fileOffset, std::size_t bufOffset, std::size_t readLength) const
-	{
-		if (fileOffset >= _length)
-		{
-			throw std::out_of_range{ "File offset is out of range" };
-		}
-		std::size_t remainingBufLength = bufLength - bufOffset;
-		std::size_t bytesToRead = readLength;
-		if (bytesToRead > remainingBufLength)
-		{
-			bytesToRead = remainingBufLength;
-		}
-		std::uint64_t remainingFileLength = _length - fileOffset;
-		if (bytesToRead > remainingFileLength)
-		{
-			bytesToRead = { static_cast<std::size_t>(remainingFileLength) };
-		}
-		// Reading data region by region
-		std::size_t bytesRead = 0;
-		do
-		{
-			std::uint64_t baseOffset;
-			std::size_t regionLength;
-			std::size_t offsetInRegion;
-			CalculateMapRegionParameters(fileOffset + bytesRead, _length, &baseOffset, &regionLength, &offsetInRegion);
-			std::size_t currentRegionBytesToRead = std::min(regionLength - offsetInRegion, bytesToRead - bytesRead);
-			MemoryMappedFileRegion currentRegion = mapRegion(baseOffset, regionLength);
-			// Buffers must not overlap
-			std::memcpy(buf + bytesRead, currentRegion.data() + offsetInRegion, currentRegionBytesToRead);
-			bytesRead += currentRegionBytesToRead;
-		} while (bytesRead != bytesToRead);
-		return bytesRead;
-	}
-
-	MemoryMappedFileRegion::MemoryMappedFileRegion(const std::shared_ptr<MemoryMappedFileImpl>& file, std::uint64_t offset, std::size_t length)
-		: _impl{ std::make_shared<MemoryMappedFileRegionImpl>(file, offset, length) },
-		_offset{ _impl->offset() },
-		_length{ _impl->length() }
-	{
-	}
-
-	unsigned char MemoryMappedFileRegion::operator[](std::uint64_t offsetInRegion) const
-	{
-		return *(_impl->begin() + offsetInRegion);
-	}
-
-	unsigned char MemoryMappedFileRegion::at(std::uint64_t offsetInRegion) const
-	{
-		if (offsetInRegion >= _length)
-		{
-			throw std::out_of_range{ "Invalid offset in the region" };
-		}
-		return (*this)[offsetInRegion];
-	}
-
-	const unsigned char* MemoryMappedFileRegion::begin() const
-	{
-		return _impl->begin();
-	}
-
-	const unsigned char* MemoryMappedFileRegion::end() const
-	{
-		return _impl->end();
-	}
-
-	bool MemoryMappedFileRegion::withinRange(std::uint64_t absoluteOffset) const noexcept
-	{
-		auto startingOffset = _offset;
-		auto endingOffset = _offset + _length;
-		return absoluteOffset >= startingOffset && absoluteOffset < endingOffset;
-	}
-
-	MemoryMappedFileIterator::MemoryMappedFileIterator(const MemoryMappedFileIterator& other)
-		: _iteratorImpl{ std::make_shared<MemoryMappedFileImpl>(*other._iteratorImpl) }
-	{
-	}
-
-	MemoryMappedFileIterator& MemoryMappedFileIterator::operator++()
-	{
-		// first, check if the file is ended
-		if (_lastRegion)
-		{
-			// No more regions
-			// invalidate the iterator
-			invalidate();
-			return *this;
-		}
-		std::uint64_t nextAbsoluteOffset = _baseInFile + _mapRegionLength;
-		bool ok = RecalculateData(nextAbsoluteOffset);
-		assert(ok);
-		/*MemoryMappedFile f{_iteratorImpl->_currentRegion};
-		std::uint64_t fileSize = { f.length() };
-		if (nextAbsoluteOffset >= fileSize)
-		{
-			// Invalidate an iterator
-			_iteratorImpl = nullptr;
-		}
-		else
-		{
-			// Allocate a new mapped region
-			// Allocate a new region
-			std::uint64_t base, regionLength;
-			CalculateMapRegionParameters(nextAbsoluteOffset, fileSize, &base, &regionLength, nullptr);
-			_iteratorImpl->_currentRegion = std::move(f.mapRegion(base, regionLength));
-			_iteratorImpl->_baseInFile = base;
-			_iteratorImpl->_offsetInRegion = 0;
-		}*/
-		return *this;
-	}
-
-	std::partial_ordering MemoryMappedFileIterator::operator<=>(const MemoryMappedFileIterator& other) const
-	{
-		if (empty() && other.empty())
-		{
-			return std::partial_ordering::equivalent;
-		}
-		if (this->_iteratorImpl != other._iteratorImpl)
-		{
-			return std::partial_ordering::unordered;
-		}
-		auto thisAbsoluteOffset = _baseInFile;
-		auto otherAbsoluteOffset = other._baseInFile;
-		return thisAbsoluteOffset <=> otherAbsoluteOffset;
-		/*if (thisAbsoluteOffset == otherAbsoluteOffset)
-		{
-			return std::partial_ordering::equivalent;
-		}
-		else if (thisAbsoluteOffset > otherAbsoluteOffset)
-		{
-			// If offset of left is greater, return a positive value
-			return std::partial_ordering::less;
-		}
-		else
-		{
-			// Else return a negative value
-			return std::partial_ordering::greater;
-		}*/
-	}
-
-	MemoryMappedFileRegion MemoryMappedFileIterator::operator*() const
-	{
-		if (empty())
-		{
-			throw std::runtime_error{ "Invalid iterator, or end of file is reached" };
-		}
-		MemoryMappedFile file{ _iteratorImpl };
-		return file.mapRegion(_baseInFile, _mapRegionLength);
-	}
+	#pragma endregion
 }
 #endif
