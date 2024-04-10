@@ -26,6 +26,11 @@ namespace Eyesol::Executables
         std::uint64_t AbsoluteOffset;
         std::size_t Length;
 
+        std::uint64_t AbsoluteEndOffset() const
+        {
+            return AbsoluteOffset + Length;
+        }
+
         bool empty() const { return Length == 0; }
     };
 
@@ -44,16 +49,54 @@ namespace Eyesol::Executables
         // DOS Header formatted area includes all fields up to e_ovno (including)
         constexpr std::size_t DOS_HEADER_FORMATTED_AREA_START = 0;
         constexpr std::size_t DOS_HEADER_FORMATTED_AREA_END = 0x1C;
+        constexpr std::size_t DOS_HEADER_LFANEW_OFFSET = 0x3c;
         constexpr std::size_t DOS_HEADER_EXTENDED_END = 0x40;
 
         constexpr std::size_t DOS_HEADER_RELOCATION_SIZE = sizeof(std::uint32_t);
 
         constexpr std::size_t DOS_HEADER_CHECKSUM_OFFSET = 0x12U;
 
-        struct MicrosoftRichHeaderElement
+        constexpr uint32_t DOS_HEADER_RICH_SIGNATURE_MAGIC = 0x68636952U; // Rich
+        constexpr uint32_t DOS_HEADER_DECRYPTED_DANS_SIGNATURE_MAGIC = 0x536E6144; // DanS
+
+        // A usual Microsoft Linker "Rich" header start
+        constexpr std::size_t DOS_HEADER_RICH_HEADER_USUAL_START_OFFSET = 0x80;
+
+        struct RichHeaderElement
         {
             std::uint16_t id;
-            std::uint16_t use_count;
+            std::uint16_t build_number;
+            std::uint32_t use_count;
+        };
+
+        struct RichHeader
+        {
+            std::vector<RichHeaderElement> elements;
+            uint32_t decryptKey;
+        };
+
+        struct RichHeaderMetadata
+        {
+            RichHeader header;
+            FileLocation loc;
+            size_t richSignatureOffset;
+
+            bool checksumValid;
+
+            size_t decryptKeyOffset() const
+            {
+                return richSignatureOffset + sizeof(uint32_t);
+            }
+
+            size_t paddingOffset() const
+            {
+                return richSignatureOffset + sizeof(uint32_t) * 2;
+            }
+
+            size_t paddingLength() const
+            {
+                return loc.AbsoluteEndOffset() - paddingOffset();
+            }
         };
 
         struct MzDosHeaderRelocation
@@ -113,7 +156,7 @@ namespace Eyesol::Executables
                 : header{},
                 nominalDosDataLength{},
                 actualDosDataLength{},
-                actualDosFileLengh{},
+                fullFileLength{},
                 dosHeaderLoc{},
                 dosRelocationsLoc{},
                 dosStubCodeLoc{}
@@ -122,13 +165,13 @@ namespace Eyesol::Executables
 
             MzDosHeader header;
             // A nominal DOS file length after loading into memory by DOS loader.
-            // Actual DOS data in PE file may be less than this
+            // Actual DOS data length in PE file may be less than this
             std::uint32_t nominalDosDataLength;
             // A length of the actual DOS MZ file data. Trailing data is not included.
             // In MZ-derived formats, actual MZ data may be less than nominal
             std::uint32_t actualDosDataLength;
-            // Total file size, including all trailing data
-            std::uint64_t actualDosFileLengh;
+            // Total file length, including all trailing data
+            std::uint64_t fullFileLength;
             FileLocation dosHeaderLoc;
             // Located inside the DOS header
             static constexpr FileLocation dosFormattedAreaLoc{ DOS_HEADER_FORMATTED_AREA_START, DOS_HEADER_FORMATTED_AREA_END };
@@ -138,6 +181,11 @@ namespace Eyesol::Executables
             FileLocation dosRelocationsLoc;
             FileLocation dosStubCodeLoc;
 
+            std::optional<RichHeaderMetadata> richMetadata;
+
+            // nullopt - checksum is not used
+            // true - checksum is used (nonzero), and correct
+            // false - checksum is used, and incorrect
             std::optional<bool> checksumValid;
 
             // Here, may be overlays data or other vendor-specific information

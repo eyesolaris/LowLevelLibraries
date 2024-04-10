@@ -42,6 +42,9 @@ namespace Eyesol::Executables::Mz
 		static uint16_t CalculateChecksum(const MemoryMappedIO::MemoryMappedFile& file, MzParseContext& ctx, bool includeBytesBeyondActualDosPart);
 		static bool ChecksumValid(uint16_t checksum, uint16_t complementChecksum);
 
+		// Writes an offset of the "Rich" signature (if any) to the offset parameter
+		static void TryParseRichHeader(const MemoryMappedIO::MemoryMappedFile& file, MzParseContext& ctx);
+
 		static std::vector<std::string> _supportedFormatNames;
 	};
 
