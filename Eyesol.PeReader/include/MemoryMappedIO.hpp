@@ -1,6 +1,7 @@
 #if !defined _MEMORYMAPPEDIO_H_
 #	define _MEMORYMAPPEDIO_H_
 #	include <framework.hpp>
+#	include "Memory.hpp"
 
 namespace Eyesol::MemoryMappedIO
 {
@@ -42,6 +43,7 @@ namespace Eyesol::MemoryMappedIO
 		const unsigned char* RegionEnd(const MemoryMappedFileRegionImpl& region);
 
 		std::uint64_t GetFileLength(const MemoryMappedFileImpl&);
+		std::string GetFilePath(const MemoryMappedFileImpl&);
 	}
 
 	//class MemoryMappedFileImpl;
@@ -96,8 +98,10 @@ namespace Eyesol::MemoryMappedIO
 		MemoryMappedFile(std::string path);
 		MemoryMappedFile(std::wstring path);
 		MemoryMappedFile(std::u16string path);
+		MemoryMappedFile(const MemoryMappedFile&);
 		MemoryMappedFile(MemoryMappedFile&&) noexcept;
 
+		MemoryMappedFile& operator=(const MemoryMappedFile&);
 		MemoryMappedFile& operator=(MemoryMappedFile&&) noexcept;
 
 		bool operator==(const MemoryMappedFile&) const noexcept = default;
@@ -111,15 +115,31 @@ namespace Eyesol::MemoryMappedIO
 
 		bool empty() const { return _length == 0; }
 
+		std::string path() const;
+
 		MemoryMappedFileIterator begin() const;
 		MemoryMappedFileIterator end() const;
 
 		// buffers must not overlap
 		std::size_t Read(unsigned char* buf, std::size_t bufLength, std::uint64_t fileOffset, std::size_t bufOffset, std::size_t readLength) const;
+		
+		template <std::endian DataEndianness, Memory::PrimitiveType T>
+		void Read(T& obj, std::size_t fileOffset) const
+		{
+			Memory::Read<DataEndianness>(*this, fileOffset, obj);
+			//Read(reinterpret_cast<unsigned char*>(&obj), sizeof(T), fileOffset, 0, sizeof(T));
+		}
+
+		template <Memory::PrimitiveType T>
+		void Read(T& obj, std::size_t fileOffset, std::endian dataEndianness) const
+		{
+			Memory::Read(*this, fileOffset, dataEndianness, obj);
+			//Read(reinterpret_cast<unsigned char*>(&obj), sizeof(T), fileOffset, 0, sizeof(T));
+		}
 
 		unsigned char operator[](std::uint64_t absoluteOffset) const;
 
-		MemoryMappedFileRegion MapRegion(std::uint64_t offset, std::size_t length) const;
+		[[nodiscard]] MemoryMappedFileRegion MapRegion(std::uint64_t offset, std::size_t length) const;
 
 	private:
 		MemoryMappedFile(const MemoryMappedFileRegion&);

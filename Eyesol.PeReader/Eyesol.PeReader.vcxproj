@@ -164,7 +164,11 @@
   <ItemGroup>
     <ClCompile Include="MemoryMappedIO.cpp" />
     <ClCompile Include="src\dllmain.cpp" />
+    <ClCompile Include="src\Executable.cpp" />
     <ClCompile Include="src\Eyesol.PeReader.cpp" />
+    <ClCompile Include="src\MzParser.cpp" />
+    <ClCompile Include="src\PeHeaders.cpp" />
+    <ClCompile Include="src\PeParser.cpp" />
     <ClCompile Include="src\Windows.cpp" />
     <ClCompile Include="src\MemoryMappedIO.Windows.cpp" />
     <ClCompile Include="src\Runtime.Windows.cpp" />
@@ -173,8 +177,14 @@
     <ClCompile Include="src\WindowsConsoleOutputFix.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\Arch.hpp" />
+    <ClInclude Include="include\Compiler.hpp" />
     <ClInclude Include="include\CompilerInfo.hpp" />
+    <ClInclude Include="include\Exceptions.hpp" />
+    <ClInclude Include="include\Executable.hpp" />
     <ClInclude Include="include\Eyesol.PeReader.hpp" />
+    <ClInclude Include="include\MzParser.hpp" />
+    <ClInclude Include="include\PeParser.hpp" />
     <ClInclude Include="include\Windows.hpp" />
     <ClInclude Include="include\framework.hpp" />
     <ClInclude Include="include\Memory.hpp" />

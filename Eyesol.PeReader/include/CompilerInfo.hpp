@@ -1,21 +1,23 @@
 #if !defined _COMPILERINFO_H_
 #	define _COMPILERINFO_H_
+#	if __cplusplus < 201100
+#		error "C++11 or better is required"
+#	endif
 
-#if __cplusplus < 201100
-#  error "C++11 or better is required"
-#endif
+#	include <algorithm>
+#	include <cstdio>
+#	include <cstring>
+#	include <utility>
+#	include <vector>
 
-#include <algorithm>
-#include <cstdio>
-#include <cstring>
-#include <utility>
-#include <vector>
+#	ifdef __has_include
+#		if __has_include(<version>)
+#			include <version>
+#		endif
+#	endif
 
-#ifdef __has_include
-# if __has_include(<version>)
-#   include <version>
-# endif
-#endif
+#	include "Arch.hpp"
+#	include "Compiler.hpp"
 
 #	define _X86_VERSION_IMPL_ None
 #	define _ARM_VERSION_IMPL_ None
@@ -32,7 +34,7 @@
 #	elif defined __MINGW32__
 #		define _COMPILER_TYPE_IMPL_ MinGW32
 #	elif
-define _COMPILER_TYPE_IMPL_ Unknown
+#		define _COMPILER_TYPE_IMPL_ Unknown
 #	endif
 
 #	if defined _WIN32
@@ -121,18 +123,6 @@ namespace Eyesol
 {
 	namespace Cpu
 	{
-		enum class ArchType
-		{
-			Unknown,
-			X86_16,
-			X86_32,
-			X86_64,
-			Arm32,
-			Arm64,
-			// Intel IA64 (Itanium)
-			Ia64,
-		};
-
 		constexpr ArchType CurrentProcessorArch = ArchType::_PROCESSOR_ARCHITECTURE_IMPL_;
 
 		constexpr bool IsLittleEndian = std::endian::native == std::endian::little;
@@ -146,82 +136,34 @@ namespace Eyesol
 
 		namespace X86
 		{
-			enum class X86VersionType
-			{
-				None,
-				Unknown,
-				_8086,
-				_80186,
-				_80286,
-				_80386,
-				_80486,
-				Pentium,
-				PentiumPro,
-				X64
-			};
-
 			constexpr X86VersionType CurrentX86Version = X86VersionType::_X86_VERSION_IMPL_;
 		}
 
 		namespace Ia64
 		{
-			enum class Ia64VersionType
-			{
-				None,
-				Unknown
-			};
-
 			constexpr Ia64VersionType CurrentIa64Version = Ia64VersionType::_IA64_VERSION_IMPL_;
 		}
 
 		namespace Arm
 		{
-			enum class ArmVersionType
-			{
-				None,
-				Unknown
-			};
-
 			constexpr ArmVersionType CurrentArmVersion = ArmVersionType::_ARM_VERSION_IMPL_;
 		}
 	}
 
 	namespace Compiler
 	{
-		enum class CompilerType
-		{
-			Unknown,
-			MSVC,
-			Gcc,
-			Clang,
-			MinGW32,
-			Emscripten,
-			OpenWatcom,
-			DigitalMars,
-		};
-
 		constexpr CompilerType CurrentCompiler = CompilerType::_COMPILER_TYPE_IMPL_;
 	}
 
 	namespace OS
 	{
-		enum class OSType
-		{
-			Unknown,
-			Windows,
-			Linux,
-			Android,
-			// macOS & iOS
-			Darwin,
-			AsmJS
-		};
-
 		constexpr OSType CurrentOS = OSType::_OS_TYPE_IMPL_;
 	}
 
 	namespace Memory
 	{
-		constexpr bool UnalignedAccessAllowed = Eyesol::Compiler::CurrentCompiler == Eyesol::Compiler::CompilerType::MSVC
+		constexpr bool UnalignedAccessAllowed
+			= (Eyesol::Compiler::CurrentCompiler == Eyesol::Compiler::CompilerType::MSVC)
 			&& ((Eyesol::Cpu::CurrentProcessorArch == Eyesol::Cpu::ArchType::X86_32)
 				|| (Eyesol::Cpu::CurrentProcessorArch == Eyesol::Cpu::ArchType::X86_64));
 	}

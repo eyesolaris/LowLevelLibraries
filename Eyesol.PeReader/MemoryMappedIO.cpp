@@ -89,6 +89,12 @@ namespace Eyesol::MemoryMappedIO
 		_impl = Impl::OpenFile(path, _length);
 	}
 
+	MemoryMappedFile::MemoryMappedFile(const MemoryMappedFile& other)
+		: _impl{ other._impl },
+		_length{ other._length }
+	{
+	}
+
 	MemoryMappedFile::MemoryMappedFile(const MemoryMappedFileRegion& region)
 	{
 		_impl = Impl::get_impl(*Impl::get_impl(region));
@@ -110,6 +116,13 @@ namespace Eyesol::MemoryMappedIO
 
 	MemoryMappedFile::~MemoryMappedFile()
 	{
+	}
+
+	MemoryMappedFile& MemoryMappedFile::operator=(const MemoryMappedFile& other)
+	{
+		_impl = other._impl;
+		_length = other._length;
+		return *this;
 	}
 
 	MemoryMappedFile& MemoryMappedFile::operator=(MemoryMappedFile&& other) noexcept
@@ -147,6 +160,11 @@ namespace Eyesol::MemoryMappedIO
 	MemoryMappedFileIterator MemoryMappedFile::end() const
 	{
 		return MemoryMappedFileIterator{};
+	}
+
+	std::string MemoryMappedFile::path() const
+	{
+		return Impl::GetFilePath(*_impl);
 	}
 
 	MemoryMappedFileRegion MemoryMappedFile::MapRegion(std::uint64_t offset, std::size_t length) const

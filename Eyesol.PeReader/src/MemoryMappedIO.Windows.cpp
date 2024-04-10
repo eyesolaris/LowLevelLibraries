@@ -63,12 +63,14 @@ namespace Eyesol::MemoryMappedIO
 		HANDLE _fileHandle;
 		HANDLE _fileMappingObjectHandle;
 		std::uint64_t _fileLength;
+		std::wstring _path;
 
 		// TODO: create a custom iterator
-		MemoryMappedFileImpl(HANDLE fileHandle, HANDLE fileMappingObjectHandle, std::uint64_t fileLength) noexcept
+		MemoryMappedFileImpl(std::wstring path, HANDLE fileHandle, HANDLE fileMappingObjectHandle, std::uint64_t fileLength) noexcept
 			: _fileHandle{ fileHandle },
 			_fileMappingObjectHandle{ fileMappingObjectHandle },
-			_fileLength{ fileLength }
+			_fileLength{ fileLength },
+			_path{ std::move(path) }
 		{
 		}
 
@@ -192,6 +194,7 @@ namespace Eyesol::MemoryMappedIO
 			// Construct a handle to return (don't release the handles yet,
 			// in case of make_unique throwing an exception)
 			auto ptr = std::make_unique<MemoryMappedFileImpl>(
+				std::move(path),
 				openedFile.getHandle(),
 				fileMappingObject.getHandle(),
 				fileSize);
@@ -206,15 +209,20 @@ namespace Eyesol::MemoryMappedIO
 			return file._fileLength;
 		}
 
+		std::string GetFilePath(const MemoryMappedFileImpl& file)
+		{
+			return wstring_to_utf8string(file._path);
+		}
+
 		const std::shared_ptr<MemoryMappedFileImpl>& get_impl(const MemoryMappedFileRegionImpl& regionHandle)
 		{
 			return regionHandle._impl;
 		}
 
-		void GetRegionOffsetAndLength(const std::shared_ptr<MemoryMappedFileRegionImpl>& regionHandle, std::uint64_t& offset, std::uint64_t& length)
+		void GetRegionOffsetAndLength(const MemoryMappedFileRegionImpl& region, std::uint64_t& offset, std::uint64_t& length)
 		{
-			offset = regionHandle->_offset;
-			length = regionHandle->_length;
+			offset = region._offset;
+			length = region._length;
 		}
 
 		std::shared_ptr<MemoryMappedFileRegionImpl> MapRegion(const std::shared_ptr<Impl::MemoryMappedFileImpl>& fileHandle, std::uint64_t offset, std::uint64_t length)
